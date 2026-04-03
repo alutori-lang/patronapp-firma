@@ -6,19 +6,19 @@
   <title>Firma - PatronApp</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f0f4ff;min-height:100vh;overflow:hidden}
-    .header{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px}
+    body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f0f4ff;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+    .header{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0}
     .header .logo{font-size:20px;font-weight:800}
     .header .doc{font-size:12px;opacity:.8}
     .header .nome{font-size:14px;font-weight:700}
-    .main{padding:12px;height:calc(100vh - 60px);display:flex;flex-direction:column}
-    .info{background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px}
+    .main{padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .info{background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;flex-shrink:0}
     .info .icon{width:40px;height:40px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
     .info h2{font-size:15px;color:#0f172a}
     .info p{font-size:12px;color:#64748b}
-    canvas{flex:1;width:100%;border:2px dashed #cbd5e1;border-radius:12px;background:#fff;touch-action:none;cursor:crosshair}
+    canvas{flex:1;width:100%;min-height:150px;border:2px dashed #cbd5e1;border-radius:12px;background:#fff;touch-action:none;cursor:crosshair}
     canvas.active{border-color:#2563eb;border-style:solid;background:#fafbff}
-    .bottom{padding:10px 0;display:flex;gap:10px}
+    .bottom{padding:10px 0;display:flex;gap:10px;flex-shrink:0}
     .btn{flex:1;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;text-align:center}
     .btn-clear{background:#f1f5f9;color:#64748b}
     .btn-sign{background:#059669;color:#fff;font-size:18px}
