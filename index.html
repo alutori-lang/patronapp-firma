@@ -87,6 +87,9 @@
         document.getElementById('docNome').textContent = docNome;
         documentoUrl = data.documento_url || null;
 
+        hasWhatsapp = data.has_whatsapp || false;
+        hasEmail = data.has_email || false;
+
         if (data.stato === 'signed') {
           document.getElementById('main').innerHTML = '<div class="already"><div style="font-size:56px">&#9989;</div><h2>Gia firmato</h2><p>Documento firmato il ' + (data.signed_at ? new Date(data.signed_at).toLocaleDateString('it-IT') : '') + '</p></div>';
           return;
@@ -111,47 +114,73 @@
         docHtml = '<div class="doc-scroll"><div class="no-doc-msg"><div style="font-size:48px;opacity:.5">&#128196;</div><div>Documento: <strong>' + docNome + '</strong></div></div></div>';
       }
 
-      document.getElementById('main').innerHTML =
-        docHtml +
-        '<div class="action-bar">' +
-          '<div class="info-text">Confermando, riceverai un codice OTP su WhatsApp per verificare la tua identita</div>' +
-          '<button class="btn-firma" id="signBtn">&#128274; CONFERMA E FIRMA</button>' +
-        '</div>';
+      var actionHtml = '<div class="action-bar">' +
+        '<div class="info-text">Scegli come ricevere il codice OTP per firmare</div>' +
+        '<div style="display:flex;gap:8px">';
 
-      document.getElementById('signBtn').onclick = async function() {
-        this.disabled = true;
-        this.innerHTML = '&#9203; Invio codice OTP...';
+      if (hasWhatsapp) {
+        actionHtml += '<button class="btn-firma" id="signWa" style="flex:1;font-size:15px;padding:14px">&#128172; WhatsApp</button>';
+      }
+      if (hasEmail) {
+        actionHtml += '<button class="btn-firma" id="signEmail" style="flex:1;font-size:15px;padding:14px;background:linear-gradient(135deg,#6366f1,#4f46e5)">&#9993; Email</button>';
+      }
+      if (!hasWhatsapp && !hasEmail) {
+        actionHtml += '<button class="btn-firma" id="signDirect" style="flex:1;font-size:15px;padding:14px">&#128274; CONFERMA E FIRMA</button>';
+      }
+
+      actionHtml += '</div></div>';
+
+      document.getElementById('main').innerHTML = docHtml + actionHtml;
+
+      async function sendOtp(method) {
+        var btns = document.querySelectorAll('.btn-firma');
+        btns.forEach(function(b) { b.disabled = true; });
 
         try {
           var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'send_otp', token: token })
+            body: JSON.stringify({ action: 'send_otp', token: token, otp_method: method })
           });
           var result = await resp.json();
 
           if (result.status === 'otp_sent') {
-            showOtpScreen(result.phone_masked);
+            var dest = result.phone_masked || result.email_masked || '';
+            var via = result.otp_method === 'email' ? 'Email' : 'WhatsApp';
+            showOtpScreen(dest, via);
           } else if (result.status === 'ok') {
             showSuccess(result.otp_verified);
           } else {
             throw new Error(result.message || 'Errore');
           }
         } catch (e) {
-          this.disabled = false;
-          this.innerHTML = '&#128274; CONFERMA E FIRMA';
+          btns.forEach(function(b) { b.disabled = false; });
           alert('Errore: ' + (e.message || 'Riprova'));
         }
-      };
+      }
+
+      if (document.getElementById('signWa')) {
+        document.getElementById('signWa').onclick = function() { sendOtp('whatsapp'); };
+      }
+      if (document.getElementById('signEmail')) {
+        document.getElementById('signEmail').onclick = function() { sendOtp('email'); };
+      }
+      if (document.getElementById('signDirect')) {
+        document.getElementById('signDirect').onclick = function() { sendOtp('direct'); };
+      }
     }
 
-    function showOtpScreen(phoneMasked) {
+    var hasWhatsapp = false;
+    var hasEmail = false;
+
+    function showOtpScreen(destination, via) {
+      var icon = via === 'Email' ? '&#9993;' : '&#128241;';
       document.getElementById('main').innerHTML =
         '<div class="otp-container">' +
           '<div style="font-size:48px;margin-bottom:16px">&#128272;</div>' +
           '<div class="otp-title">Inserisci il codice OTP</div>' +
-          '<div class="otp-subtitle">Abbiamo inviato un codice a 6 cifre su WhatsApp</div>' +
-          '<div class="otp-phone">&#128241; ' + phoneMasked + '</div>' +
+          '<div class="otp-subtitle">Abbiamo inviato un codice a 6 cifre via ' + via + '</div>' +
+          '<div class="otp-phone">' + icon + ' ' + destination + '</div>' +
           '<div class="otp-inputs" id="otpInputs">' +
             '<input type="tel" maxlength="1" class="otp-digit" autofocus>' +
             '<input type="tel" maxlength="1" class="otp-digit">' +
