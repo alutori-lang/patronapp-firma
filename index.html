@@ -195,22 +195,130 @@
           finalCtx.drawImage(c, 0, 0);
         }
 
-        document.getElementById('main').innerHTML = '<div class="sending">&#9203; Salvataggio firma...</div>';
+        document.getElementById('main').innerHTML = '<div class="sending">&#9203; Invio firma e codice OTP...</div>';
         try {
           var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: token, signature: finalCanvas.toDataURL('image/png') })
+            body: JSON.stringify({ action: 'send_otp', token: token, signature: finalCanvas.toDataURL('image/png') })
           });
-          if (resp.ok) {
-            document.getElementById('main').innerHTML = '<div class="success"><div style="font-size:64px">&#9989;</div><h2>Firma completata!</h2><p>Documento firmato con successo</p><p style="margin-top:16px;font-size:12px;color:#94a3b8">Puoi chiudere questa pagina</p></div>';
+          var result = await resp.json();
+
+          if (result.status === 'otp_sent') {
+            showOtpScreen(result.phone_masked);
+          } else if (result.status === 'ok') {
+            showSuccess(result.otp_verified);
           } else {
-            throw new Error('Errore');
+            throw new Error(result.message || 'Errore');
           }
         } catch (e) {
           document.getElementById('main').innerHTML = '<div class="sending" style="color:#dc2626">&#10060; Errore. Ricarica la pagina e riprova.</div>';
         }
       };
+    }
+
+    function showOtpScreen(phoneMasked) {
+      document.getElementById('main').innerHTML =
+        '<div style="padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center">' +
+          '<div style="font-size:48px;margin-bottom:16px">&#128272;</div>' +
+          '<h2 style="font-size:20px;color:#0f172a;margin-bottom:8px">Verifica OTP</h2>' +
+          '<p style="font-size:14px;color:#64748b;margin-bottom:4px">Abbiamo inviato un codice a 6 cifre su WhatsApp</p>' +
+          '<p style="font-size:13px;color:#2563eb;font-weight:700;margin-bottom:20px">&#128241; ' + phoneMasked + '</p>' +
+          '<div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px" id="otpInputs">' +
+            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none" autofocus>' +
+            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
+            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
+            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
+            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
+            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
+          '</div>' +
+          '<div id="otpError" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none"></div>' +
+          '<button id="verifyBtn" class="btn btn-sign" style="width:100%;max-width:320px;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;background:#059669;color:#fff" disabled>VERIFICA CODICE</button>' +
+          '<p style="font-size:11px;color:#94a3b8;margin-top:12px">Il codice scade tra 10 minuti</p>' +
+        '</div>';
+
+      // OTP input logic
+      var digits = document.querySelectorAll('.otp-digit');
+      digits[0].focus();
+
+      digits.forEach(function(input, i) {
+        input.addEventListener('input', function() {
+          if (this.value.length === 1 && i < 5) digits[i + 1].focus();
+          checkOtpComplete();
+        });
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Backspace' && !this.value && i > 0) {
+            digits[i - 1].focus();
+            digits[i - 1].value = '';
+          }
+        });
+        // Handle paste
+        input.addEventListener('paste', function(e) {
+          e.preventDefault();
+          var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+          for (var j = 0; j < 6 && j < paste.length; j++) {
+            digits[j].value = paste[j];
+          }
+          if (paste.length >= 6) digits[5].focus();
+          checkOtpComplete();
+        });
+      });
+
+      function checkOtpComplete() {
+        var code = '';
+        digits.forEach(function(d) { code += d.value; });
+        document.getElementById('verifyBtn').disabled = code.length < 6;
+      }
+
+      document.getElementById('verifyBtn').onclick = async function() {
+        var code = '';
+        digits.forEach(function(d) { code += d.value; });
+        if (code.length < 6) return;
+
+        this.disabled = true;
+        this.textContent = 'Verifica...';
+        document.getElementById('otpError').style.display = 'none';
+
+        try {
+          var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verify_otp', token: token, otp_code: code })
+          });
+          var result = await resp.json();
+
+          if (result.status === 'ok') {
+            showSuccess(true);
+          } else {
+            document.getElementById('otpError').textContent = result.message || 'Codice errato';
+            document.getElementById('otpError').style.display = 'block';
+            document.getElementById('verifyBtn').disabled = false;
+            document.getElementById('verifyBtn').textContent = 'VERIFICA CODICE';
+            // Clear inputs
+            digits.forEach(function(d) { d.value = ''; });
+            digits[0].focus();
+          }
+        } catch (e) {
+          document.getElementById('otpError').textContent = 'Errore di connessione. Riprova.';
+          document.getElementById('otpError').style.display = 'block';
+          document.getElementById('verifyBtn').disabled = false;
+          document.getElementById('verifyBtn').textContent = 'VERIFICA CODICE';
+        }
+      };
+    }
+
+    function showSuccess(otpVerified) {
+      var badge = otpVerified
+        ? '<div style="display:inline-block;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:6px 14px;font-size:12px;color:#047857;font-weight:700;margin-top:12px">&#128272; Verificato con OTP WhatsApp</div>'
+        : '';
+      document.getElementById('main').innerHTML =
+        '<div class="success">' +
+          '<div style="font-size:64px">&#9989;</div>' +
+          '<h2>Firma completata!</h2>' +
+          '<p>Documento firmato con successo</p>' +
+          badge +
+          '<p style="margin-top:16px;font-size:12px;color:#94a3b8">Puoi chiudere questa pagina</p>' +
+        '</div>';
     }
   </script>
 </body>
