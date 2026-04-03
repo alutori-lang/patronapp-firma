@@ -12,10 +12,11 @@
     .header .doc{font-size:12px;opacity:.8}
     .header .nome{font-size:14px;font-weight:700}
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .doc-container{flex:1;position:relative;overflow:auto;background:#e2e8f0;min-height:0}
-    .doc-container img{width:100%;display:block;pointer-events:none;user-select:none}
-    .doc-container iframe{width:100%;height:100%;border:none;pointer-events:none}
-    .doc-container canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:10}
+    .doc-container{flex:1;position:relative;overflow:auto;background:#e2e8f0;min-height:0;-webkit-overflow-scrolling:touch}
+    .doc-inner{position:relative;min-height:100%}
+    .doc-inner img{width:100%;display:block;pointer-events:none;user-select:none}
+    .doc-inner iframe{width:100%;height:100%;border:none;pointer-events:none}
+    .doc-inner canvas{position:absolute;top:0;left:0;width:100%;touch-action:pinch-zoom;cursor:crosshair;z-index:10}
     .no-doc{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:14px;gap:8px;position:relative}
     .no-doc .icon{font-size:48px;opacity:.5}
     .no-doc canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:10}
@@ -99,13 +100,15 @@
           docContent = '<img id="docImg" src="' + documentoUrl + '">';
         }
       } else {
-        docContent = '<div class="no-doc"><div class="icon">&#128196;</div><div>Firma sul documento</div></div>';
+        docContent = '<div style="height:600px"></div>';
       }
 
       document.getElementById('main').innerHTML =
         '<div class="doc-container" id="docContainer">' +
-          docContent +
-          '<canvas id="c"></canvas>' +
+          '<div class="doc-inner" id="docInner">' +
+            docContent +
+            '<canvas id="c"></canvas>' +
+          '</div>' +
         '</div>' +
         '<div class="toolbar">' +
           '<div class="hint">&#9997;&#65039; Firma direttamente sul documento</div>' +
@@ -114,68 +117,58 @@
         '</div>';
 
       const container = document.getElementById('docContainer');
+      const inner = document.getElementById('docInner');
       const c = document.getElementById('c');
       const ctx = c.getContext('2d');
       let drawing = false, hasSigned = false;
+      let scale = 2;
 
       function setupCanvas() {
-        var w = container.scrollWidth;
-        var h = container.scrollHeight;
+        var w = inner.offsetWidth;
+        var h = inner.offsetHeight;
         var img = document.getElementById('docImg');
         if (img && img.naturalHeight > 0) {
-          h = Math.max(h, img.naturalHeight * (w / img.naturalWidth));
+          h = Math.max(h, Math.round(img.naturalHeight * (w / img.naturalWidth)));
         }
-        if (h < 500) h = 500;
+        if (h < 600) h = 600;
         c.style.height = h + 'px';
-        c.width = w * 2;
-        c.height = h * 2;
-        ctx.scale(2, 2);
+        c.width = w * scale;
+        c.height = h * scale;
+        ctx.scale(scale, scale);
         ctx.strokeStyle = '#00008B';
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
       }
 
-      // Wait for image to load before sizing canvas
       var img = document.getElementById('docImg');
-      if (img && !img.complete) {
-        img.onload = function() {
-          setupCanvas();
-        };
-        // Also handle if image is already cached
-        setTimeout(setupCanvas, 500);
+      if (img && img.src && !img.complete) {
+        img.onload = setupCanvas;
+        setTimeout(setupCanvas, 1000);
       } else {
-        setTimeout(setupCanvas, 200);
-      }
-
-      function pos(e) {
-        var r = c.getBoundingClientRect();
-        var t = e.touches ? e.touches[0] : e;
-        var scaleX = c.width / 2 / r.width;
-        var scaleY = c.height / 2 / r.height;
-        return {
-          x: (t.clientX - r.left) * scaleX / (c.width / 2 / r.width),
-          y: (t.clientY - r.top + container.scrollTop) * 1
-        };
+        setTimeout(setupCanvas, 300);
       }
 
       function getPos(e) {
-        var r = c.getBoundingClientRect();
         var t = e.touches ? e.touches[0] : e;
-        var x = t.clientX - r.left;
-        var y = t.clientY - r.top + container.scrollTop;
+        var rect = c.getBoundingClientRect();
+        // Account for CSS scaling vs canvas pixel size
+        var cssW = rect.width;
+        var cssH = rect.height;
+        var x = t.clientX - rect.left;
+        var y = t.clientY - rect.top;
         return { x: x, y: y };
       }
 
-      function start(e) {
+      // Mouse events - direct drawing
+      c.addEventListener('mousedown', function(e) {
         e.preventDefault();
         drawing = true;
         var p = getPos(e);
         ctx.beginPath();
         ctx.moveTo(p.x, p.y);
-      }
-
-      function move(e) {
+      });
+      c.addEventListener('mousemove', function(e) {
         e.preventDefault();
         if (!drawing) return;
         hasSigned = true;
@@ -184,20 +177,41 @@
         var p = getPos(e);
         ctx.lineTo(p.x, p.y);
         ctx.stroke();
-      }
+      });
+      c.addEventListener('mouseup', function(e) { drawing = false; });
+      c.addEventListener('mouseleave', function(e) { drawing = false; });
 
-      function stop(e) {
-        if (e) e.preventDefault();
+      // Touch events - allow scroll with one finger, draw with touch
+      var touchTimer = null;
+      var isDrawingTouch = false;
+
+      c.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) {
+          // Start drawing immediately on touch
+          e.preventDefault();
+          isDrawingTouch = true;
+          drawing = true;
+          var p = getPos(e);
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+        }
+      }, { passive: false });
+
+      c.addEventListener('touchmove', function(e) {
+        if (!isDrawingTouch || !drawing) return;
+        e.preventDefault();
+        hasSigned = true;
+        document.getElementById('signBtn').disabled = false;
+        document.getElementById('signBtn').classList.add('ready');
+        var p = getPos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }, { passive: false });
+
+      c.addEventListener('touchend', function(e) {
         drawing = false;
-      }
-
-      c.addEventListener('mousedown', start);
-      c.addEventListener('mousemove', move);
-      c.addEventListener('mouseup', stop);
-      c.addEventListener('mouseleave', stop);
-      c.addEventListener('touchstart', start, { passive: false });
-      c.addEventListener('touchmove', move, { passive: false });
-      c.addEventListener('touchend', stop);
+        isDrawingTouch = false;
+      });
 
       document.getElementById('clearBtn').onclick = function () {
         ctx.clearRect(0, 0, c.width, c.height);
@@ -214,21 +228,22 @@
         // Combine document image + signature into one image
         var finalCanvas = document.createElement('canvas');
         var finalCtx = finalCanvas.getContext('2d');
-        finalCanvas.width = c.width;
-        finalCanvas.height = c.height;
-
-        // Draw white background
-        finalCtx.fillStyle = '#ffffff';
-        finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-
-        // Draw document image if present
         var docImg = document.getElementById('docImg');
-        if (docImg && docImg.naturalWidth > 0) {
-          finalCtx.drawImage(docImg, 0, 0, finalCanvas.width, finalCanvas.height);
-        }
 
-        // Draw signature on top
-        finalCtx.drawImage(c, 0, 0);
+        if (docImg && docImg.naturalWidth > 0) {
+          // Use original document resolution
+          finalCanvas.width = docImg.naturalWidth;
+          finalCanvas.height = docImg.naturalHeight;
+          finalCtx.drawImage(docImg, 0, 0);
+          // Scale signature to match document size
+          finalCtx.drawImage(c, 0, 0, finalCanvas.width, finalCanvas.height);
+        } else {
+          finalCanvas.width = c.width;
+          finalCanvas.height = c.height;
+          finalCtx.fillStyle = '#ffffff';
+          finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+          finalCtx.drawImage(c, 0, 0);
+        }
 
         document.getElementById('main').innerHTML = '<div class="sending">&#9203; Salvataggio firma...</div>';
         try {
