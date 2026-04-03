@@ -7,21 +7,24 @@
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f0f4ff;height:100vh;overflow:hidden;display:flex;flex-direction:column}
-    .header{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+    .header{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:10px;flex-shrink:0}
     .header .logo{font-size:20px;font-weight:800}
     .header .doc{font-size:12px;opacity:.8}
     .header .nome{font-size:14px;font-weight:700}
-    .main{padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .info{background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px;flex-shrink:0}
-    .info .icon{width:40px;height:40px;background:#eff6ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px}
-    .info h2{font-size:15px;color:#0f172a}
-    .info p{font-size:12px;color:#64748b}
-    canvas{flex:1;width:100%;min-height:150px;border:2px dashed #cbd5e1;border-radius:12px;background:#fff;touch-action:none;cursor:crosshair}
-    canvas.active{border-color:#2563eb;border-style:solid;background:#fafbff}
-    .bottom{padding:10px 0;display:flex;gap:10px;flex-shrink:0}
-    .btn{flex:1;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;text-align:center}
+    .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    .doc-preview{flex:1;overflow:auto;background:#e2e8f0;position:relative;min-height:0}
+    .doc-preview img{width:100%;display:block}
+    .doc-preview iframe{width:100%;height:100%;border:none}
+    .doc-preview .no-doc{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:14px;gap:8px}
+    .doc-preview .no-doc .icon{font-size:48px;opacity:.5}
+    .sign-section{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:8px 12px}
+    .sign-label{font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+    canvas{width:100%;height:120px;border:2px dashed #cbd5e1;border-radius:10px;background:#fafbff;touch-action:none;cursor:crosshair;display:block}
+    canvas.active{border-color:#2563eb;border-style:solid;background:#f0f4ff}
+    .bottom{display:flex;gap:8px;margin-top:8px}
+    .btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
     .btn-clear{background:#f1f5f9;color:#64748b}
-    .btn-sign{background:#059669;color:#fff;font-size:18px}
+    .btn-sign{background:#059669;color:#fff;font-size:16px}
     .btn-sign:disabled{background:#94a3b8}
     .btn-sign.ready{animation:pulse 1.5s infinite}
     @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
@@ -54,6 +57,7 @@
     const API_URL = SUPABASE_URL + '/functions/v1/firma';
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    let documentoUrl = null;
 
     if (!token) {
       document.getElementById('main').innerHTML = '<div class="error-page"><div style="font-size:56px">&#10060;</div><h2>Token mancante</h2><p>Link non valido</p></div>';
@@ -73,6 +77,7 @@
         const data = await r.json();
         document.getElementById('clienteNome').textContent = data.cliente_nome || 'Cliente';
         document.getElementById('docNome').textContent = data.documento_nome || 'Documento';
+        documentoUrl = data.documento_url || null;
 
         if (data.stato === 'signed') {
           document.getElementById('main').innerHTML = '<div class="already"><div style="font-size:56px">&#9989;</div><h2>Gia firmato</h2><p>Documento firmato il ' + (data.signed_at ? new Date(data.signed_at).toLocaleDateString('it-IT') : '') + '</p></div>';
@@ -86,11 +91,31 @@
     }
 
     function renderSignaturePad() {
-      document.getElementById('main').innerHTML = '<div class="info"><div class="icon">&#9997;&#65039;</div><div><h2>Firma qui sotto</h2><p>Usa il dito per firmare</p></div></div><canvas id="c"></canvas><div class="bottom"><button class="btn btn-clear" id="clearBtn">Cancella</button><button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button></div>';
+      var docHtml = '';
+      if (documentoUrl) {
+        var isPdf = documentoUrl.toLowerCase().endsWith('.pdf');
+        if (isPdf) {
+          docHtml = '<div class="doc-preview"><iframe src="' + documentoUrl + '#toolbar=0&navpanes=0"></iframe></div>';
+        } else {
+          docHtml = '<div class="doc-preview"><img src="' + documentoUrl + '" alt="Documento"></div>';
+        }
+      } else {
+        docHtml = '<div class="doc-preview"><div class="no-doc"><div class="icon">&#128196;</div><div>Documento senza allegato</div><div style="font-size:12px">Firma qui sotto per confermare</div></div></div>';
+      }
+
+      document.getElementById('main').innerHTML = docHtml +
+        '<div class="sign-section">' +
+          '<div class="sign-label">&#9997;&#65039; Firma qui sotto:</div>' +
+          '<canvas id="c"></canvas>' +
+          '<div class="bottom">' +
+            '<button class="btn btn-clear" id="clearBtn">Cancella</button>' +
+            '<button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button>' +
+          '</div>' +
+        '</div>';
 
       const c = document.getElementById('c');
       const ctx = c.getContext('2d');
-      let d = false, h = false;
+      let drawing = false, hasSigned = false;
 
       function resize() {
         const r = c.getBoundingClientRect();
@@ -103,6 +128,9 @@
         ctx.lineJoin = 'round';
       }
       resize();
+      window.addEventListener('resize', function() {
+        if (!hasSigned) resize();
+      });
 
       function pos(e) {
         const r = c.getBoundingClientRect();
@@ -112,7 +140,7 @@
 
       function start(e) {
         e.preventDefault();
-        d = true;
+        drawing = true;
         c.classList.add('active');
         const p = pos(e);
         ctx.beginPath();
@@ -121,8 +149,8 @@
 
       function move(e) {
         e.preventDefault();
-        if (!d) return;
-        h = true;
+        if (!drawing) return;
+        hasSigned = true;
         document.getElementById('signBtn').disabled = false;
         document.getElementById('signBtn').classList.add('ready');
         const p = pos(e);
@@ -132,7 +160,7 @@
 
       function stop(e) {
         e.preventDefault();
-        d = false;
+        drawing = false;
         c.classList.remove('active');
       }
 
@@ -146,24 +174,23 @@
 
       document.getElementById('clearBtn').onclick = function () {
         ctx.clearRect(0, 0, c.width, c.height);
-        h = false;
+        hasSigned = false;
         document.getElementById('signBtn').disabled = true;
         document.getElementById('signBtn').classList.remove('ready');
       };
 
       document.getElementById('signBtn').onclick = async function () {
-        if (!h) return;
-        const btn = this;
-        btn.disabled = true;
-        btn.textContent = 'Invio...';
+        if (!hasSigned) return;
+        this.disabled = true;
+        this.textContent = 'Invio...';
         document.getElementById('main').innerHTML = '<div class="sending">&#9203; Salvataggio firma...</div>';
         try {
-          const r = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
+          const resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: token, signature: c.toDataURL('image/png') })
           });
-          if (r.ok) {
+          if (resp.ok) {
             document.getElementById('main').innerHTML = '<div class="success"><div style="font-size:64px">&#9989;</div><h2>Firma completata!</h2><p>Documento firmato con successo</p><p style="margin-top:16px;font-size:12px;color:#94a3b8">Puoi chiudere questa pagina</p></div>';
           } else {
             throw new Error('Errore');
