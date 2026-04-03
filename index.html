@@ -12,19 +12,18 @@
     .header .doc{font-size:12px;opacity:.8}
     .header .nome{font-size:14px;font-weight:700}
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .doc-preview{flex:1;overflow:auto;background:#e2e8f0;position:relative;min-height:0}
-    .doc-preview img{width:100%;display:block}
-    .doc-preview iframe{width:100%;height:100%;border:none}
-    .doc-preview .no-doc{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:14px;gap:8px}
-    .doc-preview .no-doc .icon{font-size:48px;opacity:.5}
-    .sign-section{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:8px 12px}
-    .sign-label{font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
-    canvas{width:100%;height:120px;border:2px dashed #cbd5e1;border-radius:10px;background:#fafbff;touch-action:none;cursor:crosshair;display:block}
-    canvas.active{border-color:#2563eb;border-style:solid;background:#f0f4ff}
-    .bottom{display:flex;gap:8px;margin-top:8px}
-    .btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+    .doc-container{flex:1;position:relative;overflow:auto;background:#e2e8f0;min-height:0}
+    .doc-container img{width:100%;display:block;pointer-events:none;user-select:none}
+    .doc-container iframe{width:100%;height:100%;border:none;pointer-events:none}
+    .doc-container canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:10}
+    .no-doc{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:14px;gap:8px;position:relative}
+    .no-doc .icon{font-size:48px;opacity:.5}
+    .no-doc canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:10}
+    .toolbar{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:8px 12px;display:flex;gap:8px;align-items:center}
+    .toolbar .hint{flex:1;font-size:12px;color:#2563eb;font-weight:600}
+    .btn{padding:14px 20px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
     .btn-clear{background:#f1f5f9;color:#64748b}
-    .btn-sign{background:#059669;color:#fff;font-size:16px}
+    .btn-sign{background:#059669;color:#fff;font-size:16px;flex:1}
     .btn-sign:disabled{background:#94a3b8}
     .btn-sign.ready{animation:pulse 1.5s infinite}
     @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
@@ -91,58 +90,87 @@
     }
 
     function renderSignaturePad() {
-      var docHtml = '';
+      var docContent = '';
       if (documentoUrl) {
         var isPdf = documentoUrl.toLowerCase().endsWith('.pdf');
         if (isPdf) {
-          docHtml = '<div class="doc-preview"><iframe src="' + documentoUrl + '#toolbar=0&navpanes=0"></iframe></div>';
+          docContent = '<img id="docImg" src="" style="display:none"><iframe id="docFrame" src="' + documentoUrl + '#toolbar=0&navpanes=0"></iframe>';
         } else {
-          docHtml = '<div class="doc-preview"><img src="' + documentoUrl + '" alt="Documento"></div>';
+          docContent = '<img id="docImg" src="' + documentoUrl + '">';
         }
       } else {
-        docHtml = '<div class="doc-preview"><div class="no-doc"><div class="icon">&#128196;</div><div>Documento senza allegato</div><div style="font-size:12px">Firma qui sotto per confermare</div></div></div>';
+        docContent = '<div class="no-doc"><div class="icon">&#128196;</div><div>Firma sul documento</div></div>';
       }
 
-      document.getElementById('main').innerHTML = docHtml +
-        '<div class="sign-section">' +
-          '<div class="sign-label">&#9997;&#65039; Firma qui sotto:</div>' +
+      document.getElementById('main').innerHTML =
+        '<div class="doc-container" id="docContainer">' +
+          docContent +
           '<canvas id="c"></canvas>' +
-          '<div class="bottom">' +
-            '<button class="btn btn-clear" id="clearBtn">Cancella</button>' +
-            '<button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button>' +
-          '</div>' +
+        '</div>' +
+        '<div class="toolbar">' +
+          '<div class="hint">&#9997;&#65039; Firma direttamente sul documento</div>' +
+          '<button class="btn btn-clear" id="clearBtn">Cancella</button>' +
+          '<button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button>' +
         '</div>';
 
+      const container = document.getElementById('docContainer');
       const c = document.getElementById('c');
       const ctx = c.getContext('2d');
       let drawing = false, hasSigned = false;
 
-      function resize() {
-        const r = c.getBoundingClientRect();
-        c.width = r.width * 2;
-        c.height = r.height * 2;
+      function setupCanvas() {
+        var w = container.scrollWidth;
+        var h = container.scrollHeight;
+        var img = document.getElementById('docImg');
+        if (img && img.naturalHeight > 0) {
+          h = Math.max(h, img.naturalHeight * (w / img.naturalWidth));
+        }
+        if (h < 500) h = 500;
+        c.style.height = h + 'px';
+        c.width = w * 2;
+        c.height = h * 2;
         ctx.scale(2, 2);
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#00008B';
+        ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
       }
-      resize();
-      window.addEventListener('resize', function() {
-        if (!hasSigned) resize();
-      });
+
+      // Wait for image to load before sizing canvas
+      var img = document.getElementById('docImg');
+      if (img && !img.complete) {
+        img.onload = function() {
+          setupCanvas();
+        };
+        // Also handle if image is already cached
+        setTimeout(setupCanvas, 500);
+      } else {
+        setTimeout(setupCanvas, 200);
+      }
 
       function pos(e) {
-        const r = c.getBoundingClientRect();
-        const t = e.touches ? e.touches[0] : e;
-        return { x: t.clientX - r.left, y: t.clientY - r.top };
+        var r = c.getBoundingClientRect();
+        var t = e.touches ? e.touches[0] : e;
+        var scaleX = c.width / 2 / r.width;
+        var scaleY = c.height / 2 / r.height;
+        return {
+          x: (t.clientX - r.left) * scaleX / (c.width / 2 / r.width),
+          y: (t.clientY - r.top + container.scrollTop) * 1
+        };
+      }
+
+      function getPos(e) {
+        var r = c.getBoundingClientRect();
+        var t = e.touches ? e.touches[0] : e;
+        var x = t.clientX - r.left;
+        var y = t.clientY - r.top + container.scrollTop;
+        return { x: x, y: y };
       }
 
       function start(e) {
         e.preventDefault();
         drawing = true;
-        c.classList.add('active');
-        const p = pos(e);
+        var p = getPos(e);
         ctx.beginPath();
         ctx.moveTo(p.x, p.y);
       }
@@ -153,15 +181,14 @@
         hasSigned = true;
         document.getElementById('signBtn').disabled = false;
         document.getElementById('signBtn').classList.add('ready');
-        const p = pos(e);
+        var p = getPos(e);
         ctx.lineTo(p.x, p.y);
         ctx.stroke();
       }
 
       function stop(e) {
-        e.preventDefault();
+        if (e) e.preventDefault();
         drawing = false;
-        c.classList.remove('active');
       }
 
       c.addEventListener('mousedown', start);
@@ -183,12 +210,32 @@
         if (!hasSigned) return;
         this.disabled = true;
         this.textContent = 'Invio...';
+
+        // Combine document image + signature into one image
+        var finalCanvas = document.createElement('canvas');
+        var finalCtx = finalCanvas.getContext('2d');
+        finalCanvas.width = c.width;
+        finalCanvas.height = c.height;
+
+        // Draw white background
+        finalCtx.fillStyle = '#ffffff';
+        finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+        // Draw document image if present
+        var docImg = document.getElementById('docImg');
+        if (docImg && docImg.naturalWidth > 0) {
+          finalCtx.drawImage(docImg, 0, 0, finalCanvas.width, finalCanvas.height);
+        }
+
+        // Draw signature on top
+        finalCtx.drawImage(c, 0, 0);
+
         document.getElementById('main').innerHTML = '<div class="sending">&#9203; Salvataggio firma...</div>';
         try {
-          const resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
+          var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: token, signature: c.toDataURL('image/png') })
+            body: JSON.stringify({ token: token, signature: finalCanvas.toDataURL('image/png') })
           });
           if (resp.ok) {
             document.getElementById('main').innerHTML = '<div class="success"><div style="font-size:64px">&#9989;</div><h2>Firma completata!</h2><p>Documento firmato con successo</p><p style="margin-top:16px;font-size:12px;color:#94a3b8">Puoi chiudere questa pagina</p></div>';
