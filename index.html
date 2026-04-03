@@ -12,19 +12,16 @@
     .header .doc{font-size:12px;opacity:.8}
     .header .nome{font-size:14px;font-weight:700}
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .doc-container{flex:1;position:relative;overflow:auto;background:#e2e8f0;min-height:0;-webkit-overflow-scrolling:touch}
-    .doc-inner{position:relative;min-height:100%}
-    .doc-inner img{width:100%;display:block;pointer-events:none;user-select:none}
-    .doc-inner iframe{width:100%;height:100%;border:none;pointer-events:none}
-    .doc-inner canvas{position:absolute;top:0;left:0;width:100%;touch-action:pinch-zoom;cursor:crosshair;z-index:10}
-    .no-doc{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#64748b;font-size:14px;gap:8px;position:relative}
-    .no-doc .icon{font-size:48px;opacity:.5}
-    .no-doc canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:crosshair;z-index:10}
-    .toolbar{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:8px 12px;display:flex;gap:8px;align-items:center}
-    .toolbar .hint{flex:1;font-size:12px;color:#2563eb;font-weight:600}
-    .btn{padding:14px 20px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
+    .doc-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;min-height:0}
+    .doc-scroll img{width:100%;display:block}
+    .sign-area{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:8px 12px}
+    .sign-label{font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+    canvas{width:100%;height:140px;border:2px dashed #cbd5e1;border-radius:10px;background:#fff;touch-action:none;cursor:crosshair;display:block}
+    canvas.active{border-color:#2563eb;border-style:solid;background:#fafbff}
+    .bottom{display:flex;gap:8px;margin-top:8px}
+    .btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
     .btn-clear{background:#f1f5f9;color:#64748b}
-    .btn-sign{background:#059669;color:#fff;font-size:16px;flex:1}
+    .btn-sign{background:#059669;color:#fff;font-size:16px}
     .btn-sign:disabled{background:#94a3b8}
     .btn-sign.ready{animation:pulse 1.5s infinite}
     @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
@@ -38,6 +35,7 @@
     .error-page{text-align:center;padding:60px 20px}
     .error-page h2{color:#dc2626;font-size:20px;margin-top:12px}
     .error-page p{color:#64748b;margin-top:8px;font-size:14px}
+    .no-doc-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:#64748b;font-size:14px;gap:8px}
   </style>
 </head>
 <body>
@@ -53,11 +51,11 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://phxasihantyrlgixirpu.supabase.co';
-    const API_URL = SUPABASE_URL + '/functions/v1/firma';
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    let documentoUrl = null;
+    var SUPABASE_URL = 'https://phxasihantyrlgixirpu.supabase.co';
+    var API_URL = SUPABASE_URL + '/functions/v1/firma';
+    var params = new URLSearchParams(window.location.search);
+    var token = params.get('token');
+    var documentoUrl = null;
 
     if (!token) {
       document.getElementById('main').innerHTML = '<div class="error-page"><div style="font-size:56px">&#10060;</div><h2>Token mancante</h2><p>Link non valido</p></div>';
@@ -67,14 +65,14 @@
 
     async function loadFirma() {
       try {
-        const r = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
+        var r = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
           headers: { 'Accept': 'application/json' }
         });
         if (!r.ok) {
           document.getElementById('main').innerHTML = '<div class="error-page"><div style="font-size:56px">&#10060;</div><h2>Richiesta non trovata</h2><p>Il link potrebbe essere scaduto</p></div>';
           return;
         }
-        const data = await r.json();
+        var data = await r.json();
         document.getElementById('clienteNome').textContent = data.cliente_nome || 'Cliente';
         document.getElementById('docNome').textContent = data.documento_nome || 'Documento';
         documentoUrl = data.documento_url || null;
@@ -84,160 +82,112 @@
           return;
         }
 
-        renderSignaturePad();
+        renderPage();
       } catch (e) {
         document.getElementById('main').innerHTML = '<div class="error-page"><div style="font-size:56px">&#10060;</div><h2>Errore di connessione</h2><p>Riprova tra qualche istante</p></div>';
       }
     }
 
-    function renderSignaturePad() {
-      var docContent = '';
+    function renderPage() {
+      var docHtml = '';
       if (documentoUrl) {
         var isPdf = documentoUrl.toLowerCase().endsWith('.pdf');
         if (isPdf) {
-          docContent = '<img id="docImg" src="" style="display:none"><iframe id="docFrame" src="' + documentoUrl + '#toolbar=0&navpanes=0"></iframe>';
+          docHtml = '<div class="doc-scroll"><iframe src="' + documentoUrl + '#toolbar=0" style="width:100%;height:100%;border:none"></iframe></div>';
         } else {
-          docContent = '<img id="docImg" src="' + documentoUrl + '">';
+          docHtml = '<div class="doc-scroll"><img id="docImg" src="' + documentoUrl + '"></div>';
         }
       } else {
-        docContent = '<div style="height:600px"></div>';
+        docHtml = '<div class="doc-scroll"><div class="no-doc-msg"><div style="font-size:48px;opacity:.5">&#128196;</div><div>Nessun documento allegato</div></div></div>';
       }
 
       document.getElementById('main').innerHTML =
-        '<div class="doc-container" id="docContainer">' +
-          '<div class="doc-inner" id="docInner">' +
-            docContent +
-            '<canvas id="c"></canvas>' +
+        docHtml +
+        '<div class="sign-area">' +
+          '<div class="sign-label">&#9997;&#65039; Firma qui — verrà applicata sul documento</div>' +
+          '<canvas id="c"></canvas>' +
+          '<div class="bottom">' +
+            '<button class="btn btn-clear" id="clearBtn">Cancella</button>' +
+            '<button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button>' +
           '</div>' +
-        '</div>' +
-        '<div class="toolbar">' +
-          '<div class="hint">&#9997;&#65039; Firma direttamente sul documento</div>' +
-          '<button class="btn btn-clear" id="clearBtn">Cancella</button>' +
-          '<button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button>' +
         '</div>';
 
-      const container = document.getElementById('docContainer');
-      const inner = document.getElementById('docInner');
-      const c = document.getElementById('c');
-      const ctx = c.getContext('2d');
-      let drawing = false, hasSigned = false;
-      let scale = 2;
+      var c = document.getElementById('c');
+      var ctx = c.getContext('2d');
+      var drawing = false, hasSigned = false;
 
-      function setupCanvas() {
-        var w = inner.offsetWidth;
-        var h = inner.offsetHeight;
-        var img = document.getElementById('docImg');
-        if (img && img.naturalHeight > 0) {
-          h = Math.max(h, Math.round(img.naturalHeight * (w / img.naturalWidth)));
-        }
-        if (h < 600) h = 600;
-        c.style.height = h + 'px';
-        c.width = w * scale;
-        c.height = h * scale;
-        ctx.scale(scale, scale);
+      function resize() {
+        var r = c.getBoundingClientRect();
+        c.width = r.width * 2;
+        c.height = r.height * 2;
+        ctx.scale(2, 2);
         ctx.strokeStyle = '#00008B';
         ctx.lineWidth = 2.5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
       }
-
-      var img = document.getElementById('docImg');
-      if (img && img.src && !img.complete) {
-        img.onload = setupCanvas;
-        setTimeout(setupCanvas, 1000);
-      } else {
-        setTimeout(setupCanvas, 300);
-      }
+      resize();
 
       function getPos(e) {
+        var r = c.getBoundingClientRect();
         var t = e.touches ? e.touches[0] : e;
-        var rect = c.getBoundingClientRect();
-        // Account for CSS scaling vs canvas pixel size
-        var cssW = rect.width;
-        var cssH = rect.height;
-        var x = t.clientX - rect.left;
-        var y = t.clientY - rect.top;
-        return { x: x, y: y };
+        return { x: t.clientX - r.left, y: t.clientY - r.top };
       }
 
-      // Mouse events - direct drawing
-      c.addEventListener('mousedown', function(e) {
-        e.preventDefault();
-        drawing = true;
-        var p = getPos(e);
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-      });
-      c.addEventListener('mousemove', function(e) {
-        e.preventDefault();
-        if (!drawing) return;
-        hasSigned = true;
-        document.getElementById('signBtn').disabled = false;
-        document.getElementById('signBtn').classList.add('ready');
-        var p = getPos(e);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-      });
-      c.addEventListener('mouseup', function(e) { drawing = false; });
-      c.addEventListener('mouseleave', function(e) { drawing = false; });
+      function start(e) { e.preventDefault(); drawing = true; c.classList.add('active'); var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+      function move(e) { e.preventDefault(); if (!drawing) return; hasSigned = true; document.getElementById('signBtn').disabled = false; document.getElementById('signBtn').classList.add('ready'); var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+      function stop() { drawing = false; c.classList.remove('active'); }
 
-      // Touch events - allow scroll with one finger, draw with touch
-      var touchTimer = null;
-      var isDrawingTouch = false;
+      c.addEventListener('mousedown', start);
+      c.addEventListener('mousemove', move);
+      c.addEventListener('mouseup', stop);
+      c.addEventListener('mouseleave', stop);
+      c.addEventListener('touchstart', start, { passive: false });
+      c.addEventListener('touchmove', move, { passive: false });
+      c.addEventListener('touchend', stop);
 
-      c.addEventListener('touchstart', function(e) {
-        if (e.touches.length === 1) {
-          // Start drawing immediately on touch
-          e.preventDefault();
-          isDrawingTouch = true;
-          drawing = true;
-          var p = getPos(e);
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-        }
-      }, { passive: false });
-
-      c.addEventListener('touchmove', function(e) {
-        if (!isDrawingTouch || !drawing) return;
-        e.preventDefault();
-        hasSigned = true;
-        document.getElementById('signBtn').disabled = false;
-        document.getElementById('signBtn').classList.add('ready');
-        var p = getPos(e);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-      }, { passive: false });
-
-      c.addEventListener('touchend', function(e) {
-        drawing = false;
-        isDrawingTouch = false;
-      });
-
-      document.getElementById('clearBtn').onclick = function () {
+      document.getElementById('clearBtn').onclick = function() {
         ctx.clearRect(0, 0, c.width, c.height);
         hasSigned = false;
         document.getElementById('signBtn').disabled = true;
         document.getElementById('signBtn').classList.remove('ready');
       };
 
-      document.getElementById('signBtn').onclick = async function () {
+      document.getElementById('signBtn').onclick = async function() {
         if (!hasSigned) return;
         this.disabled = true;
         this.textContent = 'Invio...';
 
-        // Combine document image + signature into one image
+        // Create final image: document + signature stamped at bottom
         var finalCanvas = document.createElement('canvas');
         var finalCtx = finalCanvas.getContext('2d');
         var docImg = document.getElementById('docImg');
 
         if (docImg && docImg.naturalWidth > 0) {
-          // Use original document resolution
+          // Document image + signature below
+          var sigH = Math.round(docImg.naturalWidth * 0.15); // signature height = 15% of doc width
           finalCanvas.width = docImg.naturalWidth;
-          finalCanvas.height = docImg.naturalHeight;
+          finalCanvas.height = docImg.naturalHeight + sigH + 40;
+          // White background
+          finalCtx.fillStyle = '#ffffff';
+          finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+          // Draw document
           finalCtx.drawImage(docImg, 0, 0);
-          // Scale signature to match document size
-          finalCtx.drawImage(c, 0, 0, finalCanvas.width, finalCanvas.height);
+          // Draw separator line
+          finalCtx.strokeStyle = '#2563eb';
+          finalCtx.lineWidth = 2;
+          finalCtx.beginPath();
+          finalCtx.moveTo(20, docImg.naturalHeight + 10);
+          finalCtx.lineTo(finalCanvas.width - 20, docImg.naturalHeight + 10);
+          finalCtx.stroke();
+          // Draw "Firma:" label
+          finalCtx.fillStyle = '#64748b';
+          finalCtx.font = '14px sans-serif';
+          finalCtx.fillText('Firma:', 20, docImg.naturalHeight + 30);
+          // Draw signature
+          finalCtx.drawImage(c, 20, docImg.naturalHeight + 20, finalCanvas.width - 40, sigH);
         } else {
+          // No document - just signature
           finalCanvas.width = c.width;
           finalCanvas.height = c.height;
           finalCtx.fillStyle = '#ffffff';
