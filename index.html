@@ -14,28 +14,34 @@
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
     .doc-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;min-height:0}
     .doc-scroll img{width:100%;display:block}
-    .sign-area{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:8px 12px}
-    .sign-label{font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px}
-    canvas{width:100%;height:140px;border:2px dashed #cbd5e1;border-radius:10px;background:#fff;touch-action:none;cursor:crosshair;display:block}
-    canvas.active{border-color:#2563eb;border-style:solid;background:#fafbff}
-    .bottom{display:flex;gap:8px;margin-top:8px}
-    .btn{flex:1;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center}
-    .btn-clear{background:#f1f5f9;color:#64748b}
-    .btn-sign{background:#059669;color:#fff;font-size:16px}
-    .btn-sign:disabled{background:#94a3b8}
-    .btn-sign.ready{animation:pulse 1.5s infinite}
-    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+    .no-doc-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:#64748b;font-size:14px;gap:8px}
+    .action-bar{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:14px 16px;text-align:center}
+    .action-bar .info-text{font-size:12px;color:#64748b;margin-bottom:10px}
+    .btn-firma{width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#059669,#047857);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px}
+    .btn-firma:disabled{background:#94a3b8;cursor:not-allowed}
+    .btn-firma:not(:disabled):active{transform:scale(0.98)}
+    .otp-container{padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center}
+    .otp-title{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:6px}
+    .otp-subtitle{font-size:14px;color:#64748b;margin-bottom:4px}
+    .otp-phone{font-size:14px;color:#2563eb;font-weight:700;margin-bottom:20px}
+    .otp-inputs{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+    .otp-digit{width:48px;height:58px;text-align:center;font-size:26px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none;color:#0f172a}
+    .otp-digit:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.15)}
+    .otp-error{color:#dc2626;font-size:13px;margin-bottom:12px;min-height:18px}
+    .btn-verify{width:100%;max-width:340px;padding:16px;border:none;border-radius:12px;font-size:17px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#059669,#047857);color:#fff}
+    .btn-verify:disabled{background:#94a3b8}
+    .otp-timer{font-size:11px;color:#94a3b8;margin-top:12px}
     .success{text-align:center;padding:40px 20px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
     .success h2{color:#059669;font-size:22px;margin-top:12px}
     .success p{color:#64748b;margin-top:8px;font-size:14px}
+    .success .badge{display:inline-block;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:8px 16px;font-size:13px;color:#047857;font-weight:700;margin-top:14px}
     .already{text-align:center;padding:40px 20px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
     .already h2{color:#2563eb;font-size:20px;margin-top:12px}
-    .sending{text-align:center;padding:40px;font-size:16px;color:#2563eb;font-weight:700}
+    .sending{text-align:center;padding:40px;font-size:16px;color:#2563eb;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%}
     .loading{text-align:center;padding:60px 20px;font-size:16px;color:#2563eb;font-weight:700}
     .error-page{text-align:center;padding:60px 20px}
     .error-page h2{color:#dc2626;font-size:20px;margin-top:12px}
     .error-page p{color:#64748b;margin-top:8px;font-size:14px}
-    .no-doc-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:#64748b;font-size:14px;gap:8px}
   </style>
 </head>
 <body>
@@ -56,6 +62,8 @@
     var params = new URLSearchParams(window.location.search);
     var token = params.get('token');
     var documentoUrl = null;
+    var clienteNome = '';
+    var docNome = '';
 
     if (!token) {
       document.getElementById('main').innerHTML = '<div class="error-page"><div style="font-size:56px">&#10060;</div><h2>Token mancante</h2><p>Link non valido</p></div>';
@@ -73,8 +81,10 @@
           return;
         }
         var data = await r.json();
-        document.getElementById('clienteNome').textContent = data.cliente_nome || 'Cliente';
-        document.getElementById('docNome').textContent = data.documento_nome || 'Documento';
+        clienteNome = data.cliente_nome || 'Cliente';
+        docNome = data.documento_nome || 'Documento';
+        document.getElementById('clienteNome').textContent = clienteNome;
+        document.getElementById('docNome').textContent = docNome;
         documentoUrl = data.documento_url || null;
 
         if (data.stato === 'signed') {
@@ -98,109 +108,25 @@
           docHtml = '<div class="doc-scroll"><img id="docImg" src="' + documentoUrl + '"></div>';
         }
       } else {
-        docHtml = '<div class="doc-scroll"><div class="no-doc-msg"><div style="font-size:48px;opacity:.5">&#128196;</div><div>Nessun documento allegato</div></div></div>';
+        docHtml = '<div class="doc-scroll"><div class="no-doc-msg"><div style="font-size:48px;opacity:.5">&#128196;</div><div>Documento: <strong>' + docNome + '</strong></div></div></div>';
       }
 
       document.getElementById('main').innerHTML =
         docHtml +
-        '<div class="sign-area">' +
-          '<div class="sign-label">&#9997;&#65039; Firma qui — verrà applicata sul documento</div>' +
-          '<canvas id="c"></canvas>' +
-          '<div class="bottom">' +
-            '<button class="btn btn-clear" id="clearBtn">Cancella</button>' +
-            '<button class="btn btn-sign" id="signBtn" disabled>FIRMA E INVIA</button>' +
-          '</div>' +
+        '<div class="action-bar">' +
+          '<div class="info-text">Confermando, riceverai un codice OTP su WhatsApp per verificare la tua identita</div>' +
+          '<button class="btn-firma" id="signBtn">&#128274; CONFERMA E FIRMA</button>' +
         '</div>';
 
-      var c = document.getElementById('c');
-      var ctx = c.getContext('2d');
-      var drawing = false, hasSigned = false;
-
-      function resize() {
-        var r = c.getBoundingClientRect();
-        c.width = r.width * 2;
-        c.height = r.height * 2;
-        ctx.scale(2, 2);
-        ctx.strokeStyle = '#00008B';
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-      }
-      resize();
-
-      function getPos(e) {
-        var r = c.getBoundingClientRect();
-        var t = e.touches ? e.touches[0] : e;
-        return { x: t.clientX - r.left, y: t.clientY - r.top };
-      }
-
-      function start(e) { e.preventDefault(); drawing = true; c.classList.add('active'); var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
-      function move(e) { e.preventDefault(); if (!drawing) return; hasSigned = true; document.getElementById('signBtn').disabled = false; document.getElementById('signBtn').classList.add('ready'); var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
-      function stop() { drawing = false; c.classList.remove('active'); }
-
-      c.addEventListener('mousedown', start);
-      c.addEventListener('mousemove', move);
-      c.addEventListener('mouseup', stop);
-      c.addEventListener('mouseleave', stop);
-      c.addEventListener('touchstart', start, { passive: false });
-      c.addEventListener('touchmove', move, { passive: false });
-      c.addEventListener('touchend', stop);
-
-      document.getElementById('clearBtn').onclick = function() {
-        ctx.clearRect(0, 0, c.width, c.height);
-        hasSigned = false;
-        document.getElementById('signBtn').disabled = true;
-        document.getElementById('signBtn').classList.remove('ready');
-      };
-
       document.getElementById('signBtn').onclick = async function() {
-        if (!hasSigned) return;
         this.disabled = true;
-        this.textContent = 'Invio...';
+        this.innerHTML = '&#9203; Invio codice OTP...';
 
-        // Create final image: document + signature stamped at bottom
-        var finalCanvas = document.createElement('canvas');
-        var finalCtx = finalCanvas.getContext('2d');
-        var docImg = document.getElementById('docImg');
-
-        if (docImg && docImg.naturalWidth > 0) {
-          // Document image + signature below
-          var sigH = Math.round(docImg.naturalWidth * 0.15); // signature height = 15% of doc width
-          finalCanvas.width = docImg.naturalWidth;
-          finalCanvas.height = docImg.naturalHeight + sigH + 40;
-          // White background
-          finalCtx.fillStyle = '#ffffff';
-          finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-          // Draw document
-          finalCtx.drawImage(docImg, 0, 0);
-          // Draw separator line
-          finalCtx.strokeStyle = '#2563eb';
-          finalCtx.lineWidth = 2;
-          finalCtx.beginPath();
-          finalCtx.moveTo(20, docImg.naturalHeight + 10);
-          finalCtx.lineTo(finalCanvas.width - 20, docImg.naturalHeight + 10);
-          finalCtx.stroke();
-          // Draw "Firma:" label
-          finalCtx.fillStyle = '#64748b';
-          finalCtx.font = '14px sans-serif';
-          finalCtx.fillText('Firma:', 20, docImg.naturalHeight + 30);
-          // Draw signature
-          finalCtx.drawImage(c, 20, docImg.naturalHeight + 20, finalCanvas.width - 40, sigH);
-        } else {
-          // No document - just signature
-          finalCanvas.width = c.width;
-          finalCanvas.height = c.height;
-          finalCtx.fillStyle = '#ffffff';
-          finalCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-          finalCtx.drawImage(c, 0, 0);
-        }
-
-        document.getElementById('main').innerHTML = '<div class="sending">&#9203; Invio firma e codice OTP...</div>';
         try {
           var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'send_otp', token: token, signature: finalCanvas.toDataURL('image/png') })
+            body: JSON.stringify({ action: 'send_otp', token: token })
           });
           var result = await resp.json();
 
@@ -212,39 +138,40 @@
             throw new Error(result.message || 'Errore');
           }
         } catch (e) {
-          document.getElementById('main').innerHTML = '<div class="sending" style="color:#dc2626">&#10060; Errore. Ricarica la pagina e riprova.</div>';
+          this.disabled = false;
+          this.innerHTML = '&#128274; CONFERMA E FIRMA';
+          alert('Errore: ' + (e.message || 'Riprova'));
         }
       };
     }
 
     function showOtpScreen(phoneMasked) {
       document.getElementById('main').innerHTML =
-        '<div style="padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center">' +
+        '<div class="otp-container">' +
           '<div style="font-size:48px;margin-bottom:16px">&#128272;</div>' +
-          '<h2 style="font-size:20px;color:#0f172a;margin-bottom:8px">Verifica OTP</h2>' +
-          '<p style="font-size:14px;color:#64748b;margin-bottom:4px">Abbiamo inviato un codice a 6 cifre su WhatsApp</p>' +
-          '<p style="font-size:13px;color:#2563eb;font-weight:700;margin-bottom:20px">&#128241; ' + phoneMasked + '</p>' +
-          '<div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px" id="otpInputs">' +
-            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none" autofocus>' +
-            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
-            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
-            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
-            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
-            '<input type="tel" maxlength="1" class="otp-digit" style="width:48px;height:56px;text-align:center;font-size:24px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none">' +
+          '<div class="otp-title">Inserisci il codice OTP</div>' +
+          '<div class="otp-subtitle">Abbiamo inviato un codice a 6 cifre su WhatsApp</div>' +
+          '<div class="otp-phone">&#128241; ' + phoneMasked + '</div>' +
+          '<div class="otp-inputs" id="otpInputs">' +
+            '<input type="tel" maxlength="1" class="otp-digit" autofocus>' +
+            '<input type="tel" maxlength="1" class="otp-digit">' +
+            '<input type="tel" maxlength="1" class="otp-digit">' +
+            '<input type="tel" maxlength="1" class="otp-digit">' +
+            '<input type="tel" maxlength="1" class="otp-digit">' +
+            '<input type="tel" maxlength="1" class="otp-digit">' +
           '</div>' +
-          '<div id="otpError" style="color:#dc2626;font-size:13px;margin-bottom:12px;display:none"></div>' +
-          '<button id="verifyBtn" class="btn btn-sign" style="width:100%;max-width:320px;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;background:#059669;color:#fff" disabled>VERIFICA CODICE</button>' +
-          '<p style="font-size:11px;color:#94a3b8;margin-top:12px">Il codice scade tra 10 minuti</p>' +
+          '<div class="otp-error" id="otpError"></div>' +
+          '<button class="btn-verify" id="verifyBtn" disabled>VERIFICA E FIRMA</button>' +
+          '<div class="otp-timer">Il codice scade tra 10 minuti</div>' +
         '</div>';
 
-      // OTP input logic
       var digits = document.querySelectorAll('.otp-digit');
       digits[0].focus();
 
       digits.forEach(function(input, i) {
         input.addEventListener('input', function() {
           if (this.value.length === 1 && i < 5) digits[i + 1].focus();
-          checkOtpComplete();
+          checkComplete();
         });
         input.addEventListener('keydown', function(e) {
           if (e.key === 'Backspace' && !this.value && i > 0) {
@@ -252,7 +179,6 @@
             digits[i - 1].value = '';
           }
         });
-        // Handle paste
         input.addEventListener('paste', function(e) {
           e.preventDefault();
           var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
@@ -260,11 +186,11 @@
             digits[j].value = paste[j];
           }
           if (paste.length >= 6) digits[5].focus();
-          checkOtpComplete();
+          checkComplete();
         });
       });
 
-      function checkOtpComplete() {
+      function checkComplete() {
         var code = '';
         digits.forEach(function(d) { code += d.value; });
         document.getElementById('verifyBtn').disabled = code.length < 6;
@@ -276,8 +202,8 @@
         if (code.length < 6) return;
 
         this.disabled = true;
-        this.textContent = 'Verifica...';
-        document.getElementById('otpError').style.display = 'none';
+        this.textContent = 'Verifica in corso...';
+        document.getElementById('otpError').textContent = '';
 
         try {
           var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
@@ -291,32 +217,26 @@
             showSuccess(true);
           } else {
             document.getElementById('otpError').textContent = result.message || 'Codice errato';
-            document.getElementById('otpError').style.display = 'block';
             document.getElementById('verifyBtn').disabled = false;
-            document.getElementById('verifyBtn').textContent = 'VERIFICA CODICE';
-            // Clear inputs
+            document.getElementById('verifyBtn').textContent = 'VERIFICA E FIRMA';
             digits.forEach(function(d) { d.value = ''; });
             digits[0].focus();
           }
         } catch (e) {
           document.getElementById('otpError').textContent = 'Errore di connessione. Riprova.';
-          document.getElementById('otpError').style.display = 'block';
           document.getElementById('verifyBtn').disabled = false;
-          document.getElementById('verifyBtn').textContent = 'VERIFICA CODICE';
+          document.getElementById('verifyBtn').textContent = 'VERIFICA E FIRMA';
         }
       };
     }
 
     function showSuccess(otpVerified) {
-      var badge = otpVerified
-        ? '<div style="display:inline-block;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:6px 14px;font-size:12px;color:#047857;font-weight:700;margin-top:12px">&#128272; Verificato con OTP WhatsApp</div>'
-        : '';
       document.getElementById('main').innerHTML =
         '<div class="success">' +
           '<div style="font-size:64px">&#9989;</div>' +
           '<h2>Firma completata!</h2>' +
           '<p>Documento firmato con successo</p>' +
-          badge +
+          (otpVerified ? '<div class="badge">&#128272; Verificato con OTP WhatsApp</div>' : '') +
           '<p style="margin-top:16px;font-size:12px;color:#94a3b8">Puoi chiudere questa pagina</p>' +
         '</div>';
     }
