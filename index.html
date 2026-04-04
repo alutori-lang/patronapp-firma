@@ -12,9 +12,9 @@
     .header .doc{font-size:12px;opacity:.8}
     .header .nome{font-size:14px;font-weight:700}
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
-    .doc-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;min-height:0}
+    .doc-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;min-height:0;padding-bottom:10px}
     .doc-scroll img{width:100%;display:block}
-    .action-bar{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:14px 16px 24px;text-align:center}
+    .action-bar{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:14px 16px 28px;text-align:center;z-index:10}
     .action-bar .info-text{font-size:12px;color:#64748b;margin-bottom:10px}
     .btn-firma{width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#059669,#047857);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px}
     .btn-firma:disabled{background:#94a3b8;cursor:not-allowed}
@@ -99,10 +99,10 @@
         var isPdf = documentoUrl.toLowerCase().endsWith('.pdf');
         if (isPdf) {
           if (isMobile) {
-            docHtml = '<div class="doc-scroll"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:20px">' +
-              '<div style="font-size:48px">&#128196;</div>' +
-              '<div style="font-size:16px;font-weight:700;color:#0f172a;text-align:center">' + docNome + '</div>' +
-              '<a href="' + documentoUrl + '" target="_blank" style="background:#2563eb;color:white;padding:12px 24px;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px">Apri documento PDF</a>' +
+            docHtml = '<div class="doc-scroll"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px;gap:12px;padding:20px">' +
+              '<div style="font-size:40px">&#128196;</div>' +
+              '<div style="font-size:15px;font-weight:700;color:#0f172a;text-align:center">' + docNome + '</div>' +
+              '<a href="' + documentoUrl + '" target="_blank" style="background:#2563eb;color:white;padding:10px 20px;border-radius:10px;font-weight:700;text-decoration:none;font-size:13px">Apri documento PDF</a>' +
               '</div></div>';
           } else {
             docHtml = '<div class="doc-scroll"><iframe src="' + documentoUrl + '#toolbar=0" style="width:100%;height:100%;border:none"></iframe></div>';
