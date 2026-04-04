@@ -133,8 +133,10 @@
           });
           var result = await resp.json();
 
-          if (result.status === 'otp_generated') {
-            showOtpScreen(result.otp_code);
+          if (result.status === 'otp_sent') {
+            showOtpVerifyScreen(result.phone_masked);
+          } else if (result.status === 'otp_generated') {
+            showOtpVerifyScreen(null, result.otp_code);
           } else if (result.status === 'ok') {
             showSuccess(result.otp_verified);
           } else {
@@ -148,14 +150,27 @@
       };
     }
 
-    function showOtpScreen(otpCode) {
+    function showOtpVerifyScreen(phoneMasked, fallbackCode) {
+      var headerHtml = '';
+      if (phoneMasked) {
+        // OTP sent via WhatsApp
+        headerHtml =
+          '<h2 style="font-size:20px;color:#0f172a;margin-bottom:6px">Inserisci il codice OTP</h2>' +
+          '<p style="font-size:14px;color:#64748b;margin-bottom:4px">Abbiamo inviato un codice a 6 cifre su WhatsApp</p>' +
+          '<p style="font-size:14px;color:#2563eb;font-weight:700;margin-bottom:16px">&#128241; ' + phoneMasked + '</p>';
+      } else {
+        // Fallback: show code on screen
+        headerHtml =
+          '<h2 style="font-size:20px;color:#0f172a;margin-bottom:6px">Codice di verifica</h2>' +
+          '<p style="font-size:14px;color:#64748b;margin-bottom:4px">Comunica questo codice al cliente</p>' +
+          '<div class="otp-display">' + fallbackCode + '</div>' +
+          '<p style="font-size:13px;color:#64748b;margin-bottom:16px">Il cliente deve inserire il codice qui sotto</p>';
+      }
+
       document.getElementById('main').innerHTML =
         '<div class="center-page">' +
           '<div style="font-size:48px;margin-bottom:12px">&#128272;</div>' +
-          '<h2 style="font-size:20px;color:#0f172a;margin-bottom:6px">Il tuo codice di verifica</h2>' +
-          '<p style="font-size:14px;color:#64748b;margin-bottom:4px">Inserisci questo codice qui sotto per firmare</p>' +
-          '<div class="otp-display">' + otpCode + '</div>' +
-          '<p style="font-size:13px;color:#64748b;margin-bottom:16px">Inserisci il codice per completare la firma</p>' +
+          headerHtml +
           '<div class="otp-inputs" id="otpInputs">' +
             '<input type="tel" maxlength="1" class="otp-digit" autofocus>' +
             '<input type="tel" maxlength="1" class="otp-digit">' +
