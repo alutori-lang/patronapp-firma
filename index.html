@@ -14,30 +14,24 @@
     .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
     .doc-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#e2e8f0;min-height:0}
     .doc-scroll img{width:100%;display:block}
-    .no-doc-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:#64748b;font-size:14px;gap:8px}
     .action-bar{flex-shrink:0;background:#fff;border-top:2px solid #2563eb;padding:14px 16px 24px;text-align:center}
     .action-bar .info-text{font-size:12px;color:#64748b;margin-bottom:10px}
     .btn-firma{width:100%;padding:18px;border:none;border-radius:14px;font-size:18px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#059669,#047857);color:#fff;display:flex;align-items:center;justify-content:center;gap:10px}
     .btn-firma:disabled{background:#94a3b8;cursor:not-allowed}
-    .btn-firma:not(:disabled):active{transform:scale(0.98)}
-    .otp-container{padding:24px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center}
-    .otp-title{font-size:20px;font-weight:800;color:#0f172a;margin-bottom:6px}
-    .otp-subtitle{font-size:14px;color:#64748b;margin-bottom:4px}
-    .otp-phone{font-size:14px;color:#2563eb;font-weight:700;margin-bottom:20px}
-    .otp-inputs{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+    .center-page{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;overflow:auto}
+    .otp-display{font-size:40px;font-weight:900;letter-spacing:12px;color:#2563eb;background:#f0f4ff;padding:16px 32px;border-radius:16px;border:3px solid #2563eb;margin:16px 0}
+    .otp-inputs{display:flex;gap:8px;justify-content:center;margin:16px 0}
     .otp-digit{width:48px;height:58px;text-align:center;font-size:26px;font-weight:800;border:2px solid #e2e8f0;border-radius:12px;outline:none;color:#0f172a}
     .otp-digit:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,0.15)}
-    .otp-error{color:#dc2626;font-size:13px;margin-bottom:12px;min-height:18px}
+    .otp-error{color:#dc2626;font-size:13px;min-height:18px;margin:8px 0}
     .btn-verify{width:100%;max-width:340px;padding:16px;border:none;border-radius:12px;font-size:17px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#059669,#047857);color:#fff}
     .btn-verify:disabled{background:#94a3b8}
-    .otp-timer{font-size:11px;color:#94a3b8;margin-top:12px}
     .success{text-align:center;padding:40px 20px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
     .success h2{color:#059669;font-size:22px;margin-top:12px}
     .success p{color:#64748b;margin-top:8px;font-size:14px}
     .success .badge{display:inline-block;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:8px 16px;font-size:13px;color:#047857;font-weight:700;margin-top:14px}
     .already{text-align:center;padding:40px 20px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
     .already h2{color:#2563eb;font-size:20px;margin-top:12px}
-    .sending{text-align:center;padding:40px;font-size:16px;color:#2563eb;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%}
     .loading{text-align:center;padding:60px 20px;font-size:16px;color:#2563eb;font-weight:700}
     .error-page{text-align:center;padding:60px 20px}
     .error-page h2{color:#dc2626;font-size:20px;margin-top:12px}
@@ -87,9 +81,6 @@
         document.getElementById('docNome').textContent = docNome;
         documentoUrl = data.documento_url || null;
 
-        hasWhatsapp = data.has_whatsapp || false;
-        hasEmail = data.has_email || false;
-
         if (data.stato === 'signed') {
           document.getElementById('main').innerHTML = '<div class="already"><div style="font-size:56px">&#9989;</div><h2>Gia firmato</h2><p>Documento firmato il ' + (data.signed_at ? new Date(data.signed_at).toLocaleDateString('it-IT') : '') + '</p></div>';
           return;
@@ -108,7 +99,6 @@
         var isPdf = documentoUrl.toLowerCase().endsWith('.pdf');
         if (isPdf) {
           if (isMobile) {
-            // Mobile: PDF iframe doesn't work, show document info + open button
             docHtml = '<div class="doc-scroll"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;padding:20px">' +
               '<div style="font-size:48px">&#128196;</div>' +
               '<div style="font-size:16px;font-weight:700;color:#0f172a;text-align:center">' + docNome + '</div>' +
@@ -121,76 +111,51 @@
           docHtml = '<div class="doc-scroll"><img id="docImg" src="' + documentoUrl + '"></div>';
         }
       } else {
-        docHtml = '<div class="doc-scroll"><div class="no-doc-msg"><div style="font-size:48px;opacity:.5">&#128196;</div><div>Documento: <strong>' + docNome + '</strong></div></div></div>';
+        docHtml = '<div class="doc-scroll"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;padding:20px"><div style="font-size:48px;opacity:.5">&#128196;</div><div style="font-size:16px;font-weight:700;color:#0f172a">' + docNome + '</div></div></div>';
       }
 
-      var actionHtml = '<div class="action-bar">' +
-        '<div class="info-text">Scegli come ricevere il codice OTP per firmare</div>' +
-        '<div style="display:flex;gap:8px">';
+      document.getElementById('main').innerHTML =
+        docHtml +
+        '<div class="action-bar">' +
+          '<div class="info-text">Conferma la tua identita per firmare questo documento</div>' +
+          '<button class="btn-firma" id="signBtn">&#128274; CONFERMA E FIRMA</button>' +
+        '</div>';
 
-      if (hasWhatsapp) {
-        actionHtml += '<button class="btn-firma" id="signWa" style="flex:1;font-size:15px;padding:14px">&#128172; WhatsApp</button>';
-      }
-      if (hasEmail) {
-        actionHtml += '<button class="btn-firma" id="signEmail" style="flex:1;font-size:15px;padding:14px;background:linear-gradient(135deg,#6366f1,#4f46e5)">&#9993; Email</button>';
-      }
-      if (!hasWhatsapp && !hasEmail) {
-        actionHtml += '<button class="btn-firma" id="signDirect" style="flex:1;font-size:15px;padding:14px">&#128274; CONFERMA E FIRMA</button>';
-      }
-
-      actionHtml += '</div></div>';
-
-      document.getElementById('main').innerHTML = docHtml + actionHtml;
-
-      async function sendOtp(method) {
-        var btns = document.querySelectorAll('.btn-firma');
-        btns.forEach(function(b) { b.disabled = true; });
+      document.getElementById('signBtn').onclick = async function() {
+        this.disabled = true;
+        this.innerHTML = '&#9203; Generazione codice...';
 
         try {
           var resp = await fetch(API_URL + '?token=' + encodeURIComponent(token), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'send_otp', token: token, otp_method: method })
+            body: JSON.stringify({ action: 'send_otp', token: token })
           });
           var result = await resp.json();
 
-          if (result.status === 'otp_sent') {
-            var dest = result.phone_masked || result.email_masked || '';
-            var via = result.otp_method === 'email' ? 'Email' : 'WhatsApp';
-            showOtpScreen(dest, via);
+          if (result.status === 'otp_generated') {
+            showOtpScreen(result.otp_code);
           } else if (result.status === 'ok') {
             showSuccess(result.otp_verified);
           } else {
             throw new Error(result.message || 'Errore');
           }
         } catch (e) {
-          btns.forEach(function(b) { b.disabled = false; });
+          this.disabled = false;
+          this.innerHTML = '&#128274; CONFERMA E FIRMA';
           alert('Errore: ' + (e.message || 'Riprova'));
         }
-      }
-
-      if (document.getElementById('signWa')) {
-        document.getElementById('signWa').onclick = function() { sendOtp('whatsapp'); };
-      }
-      if (document.getElementById('signEmail')) {
-        document.getElementById('signEmail').onclick = function() { sendOtp('email'); };
-      }
-      if (document.getElementById('signDirect')) {
-        document.getElementById('signDirect').onclick = function() { sendOtp('direct'); };
-      }
+      };
     }
 
-    var hasWhatsapp = false;
-    var hasEmail = false;
-
-    function showOtpScreen(destination, via) {
-      var icon = via === 'Email' ? '&#9993;' : '&#128241;';
+    function showOtpScreen(otpCode) {
       document.getElementById('main').innerHTML =
-        '<div class="otp-container">' +
-          '<div style="font-size:48px;margin-bottom:16px">&#128272;</div>' +
-          '<div class="otp-title">Inserisci il codice OTP</div>' +
-          '<div class="otp-subtitle">Abbiamo inviato un codice a 6 cifre via ' + via + '</div>' +
-          '<div class="otp-phone">' + icon + ' ' + destination + '</div>' +
+        '<div class="center-page">' +
+          '<div style="font-size:48px;margin-bottom:12px">&#128272;</div>' +
+          '<h2 style="font-size:20px;color:#0f172a;margin-bottom:6px">Il tuo codice di verifica</h2>' +
+          '<p style="font-size:14px;color:#64748b;margin-bottom:4px">Inserisci questo codice qui sotto per firmare</p>' +
+          '<div class="otp-display">' + otpCode + '</div>' +
+          '<p style="font-size:13px;color:#64748b;margin-bottom:16px">Inserisci il codice per completare la firma</p>' +
           '<div class="otp-inputs" id="otpInputs">' +
             '<input type="tel" maxlength="1" class="otp-digit" autofocus>' +
             '<input type="tel" maxlength="1" class="otp-digit">' +
@@ -201,7 +166,7 @@
           '</div>' +
           '<div class="otp-error" id="otpError"></div>' +
           '<button class="btn-verify" id="verifyBtn" disabled>VERIFICA E FIRMA</button>' +
-          '<div class="otp-timer">Il codice scade tra 10 minuti</div>' +
+          '<p style="font-size:11px;color:#94a3b8;margin-top:12px">Il codice scade tra 10 minuti</p>' +
         '</div>';
 
       var digits = document.querySelectorAll('.otp-digit');
@@ -221,9 +186,7 @@
         input.addEventListener('paste', function(e) {
           e.preventDefault();
           var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
-          for (var j = 0; j < 6 && j < paste.length; j++) {
-            digits[j].value = paste[j];
-          }
+          for (var j = 0; j < 6 && j < paste.length; j++) digits[j].value = paste[j];
           if (paste.length >= 6) digits[5].focus();
           checkComplete();
         });
@@ -275,7 +238,7 @@
           '<div style="font-size:64px">&#9989;</div>' +
           '<h2>Firma completata!</h2>' +
           '<p>Documento firmato con successo</p>' +
-          (otpVerified ? '<div class="badge">&#128272; Verificato con OTP WhatsApp</div>' : '') +
+          (otpVerified ? '<div class="badge">&#128272; Verificato con codice OTP</div>' : '') +
           '<p style="margin-top:16px;font-size:12px;color:#94a3b8">Puoi chiudere questa pagina</p>' +
         '</div>';
     }
